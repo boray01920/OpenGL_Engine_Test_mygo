@@ -25,8 +25,8 @@ public:
 	std::map<std::string, BoneInfo>& GetBoneIDMap() { return boneInfoMap; }
 
 private:
-	float duration;
-	float ticksPerSecond;
+	float duration = 0.0f;
+	float ticksPerSecond = 25.0f;
 	std::vector<Bone> bones;
 	AssimpNodeData rootNode;
 	std::map<std::string, BoneInfo> boneInfoMap;

@@ -8,15 +8,23 @@
 #include "Camera.h"
 #include "Texture.h"
 
+struct MaterialInfo {
+	glm::vec4 baseColor = glm::vec4(1.0f);      // glTF baseColorFactor
+	glm::vec3 emissive  = glm::vec3(0.0f);      // glTF emissiveFactor
+	bool doubleSided = false;
+};
+
 class Mesh {
 public:
 	std::vector <Vertex> vertices;
 	std::vector <GLuint> indices;
 	std::vector <Texture> textures;
 
+	MaterialInfo material;
+
 	VAO VAO;
 
-	Mesh(std::vector <Vertex>& vertices, std::vector <GLuint>& indices, std::vector <Texture>& textures);
+	Mesh(std::vector <Vertex>& vertices, std::vector <GLuint>& indices, std::vector <Texture>& textures, const MaterialInfo& material = MaterialInfo());
 
 	void Draw(
 		Shader& shader,

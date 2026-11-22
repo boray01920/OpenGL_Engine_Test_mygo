@@ -3,7 +3,7 @@
 
 Animation::Animation(const std::string& animationPath, Model* model) {
 	Assimp::Importer importer;
-	const aiScene* scene = importer.ReadFile(animationPath, aiProcess_Triangulate);
+	const aiScene* scene = importer.ReadFile(animationPath, aiProcess_Triangulate | aiProcess_LimitBoneWeights);
 
 	if (!scene || !scene->mRootNode || scene->mNumAnimations == 0) {
 		std::cout << "ERROR: Failed to load animation from => " << animationPath << "!!!!" << std::endl;
@@ -12,7 +12,7 @@ Animation::Animation(const std::string& animationPath, Model* model) {
 
 	auto animation = scene->mAnimations[0];
 	duration = (float)animation->mDuration;
-	ticksPerSecond = (int)animation->mTicksPerSecond;
+	ticksPerSecond = animation->mTicksPerSecond != 0.0 ? (float)animation->mTicksPerSecond : 1.0f;
 
 	ReadHierarchyData(rootNode, scene->mRootNode);
 	ReadMissingBones(animation, *model);
@@ -38,6 +38,7 @@ void Animation::ReadMissingBones(const aiAnimation* animation, Model& model) {
 		std::string boneName = channel->mNodeName.data;
 
 		if (boneInfoMapFromModel.find(boneName) == boneInfoMapFromModel.end()) {
+			// animated node that isn't a skinned bone (offset stays identity)
 			boneInfoMapFromModel[boneName].id = boneCount;
 			boneCount++;
 		}
@@ -49,7 +50,7 @@ void Animation::ReadMissingBones(const aiAnimation* animation, Model& model) {
 void Animation::ReadHierarchyData(AssimpNodeData& destination, const aiNode* src) {
 	destination.name = src->mName.data;
 	destination.transformation = Model::aiMatToGlmStatic(src->mTransformation);
-	destination.childrenCount = src->mNumChildren;
+	destination.childrenCount = (int)src->mNumChildren;
 
 	for (unsigned int i = 0; i < src->mNumChildren; i++) {
 		AssimpNodeData newData;

@@ -6,7 +6,12 @@ VAO::VAO() {
 
 void VAO::LinkAttrib(VBO& VBO, GLuint layout, GLuint numComponents, GLenum type, GLsizeiptr stride, void* offset) {
 	VBO.Bind();
-	glVertexAttribPointer(layout, numComponents, GL_FLOAT, GL_FALSE, stride, offset);
+	if (type == GL_INT || type == GL_UNSIGNED_INT) {
+		glVertexAttribIPointer(layout, numComponents, type, (GLsizei)stride, offset);
+	}
+	else {
+		glVertexAttribPointer(layout, numComponents, type, GL_FALSE, (GLsizei)stride, offset);
+	}
 	glEnableVertexAttribArray(layout);
 	VBO.Unbind();
 }

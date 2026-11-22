@@ -5,16 +5,18 @@ Texture::Texture(const char* image, const char* texType, GLuint slot) {
 
 	int widthImg, heightImg, numColCh;
 	stbi_set_flip_vertically_on_load(true);
-	unsigned char* bytes = stbi_load(image, &widthImg, &heightImg, &numColCh, 3);
+	unsigned char* bytes = stbi_load(image, &widthImg, &heightImg, &numColCh, 0);
 	if (!bytes) {
 		std::cout << "### ERROR: Failed to load the texture ###" << image <<std::endl;
 		return;
 	}
 	else {
-		std::cout << "Texture succesfully loaded!" << std::endl;
+		std::cout << "Texture loaded: " << image << std::endl;
 	}
 	
+	valid = true;
 	unit = slot;
+	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 	glGenTextures(1, &ID);
 	glActiveTexture(GL_TEXTURE0 + unit);
 	
@@ -37,9 +39,16 @@ Texture::Texture(const char* image, const char* texType, GLuint slot) {
 	}
 
 	else if (numColCh == 1) {
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, widthImg, heightImg, 0, GL_RED, GL_UNSIGNED_BYTE, bytes);
+		// grayscale -> replicate into RGB
+		GLint swizzle[] = { GL_RED, GL_RED, GL_RED, GL_ONE };
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, widthImg, heightImg, 0, GL_RED, GL_UNSIGNED_BYTE, bytes);
+		glTexParameteriv(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_RGBA, swizzle);
 	}
-	else throw std::invalid_argument("ERROR: Texture type recognition failed\n");
+	else if (numColCh == 2) {
+		GLint swizzle[] = { GL_RED, GL_RED, GL_RED, GL_GREEN };
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RG, widthImg, heightImg, 0, GL_RG, GL_UNSIGNED_BYTE, bytes);
+		glTexParameteriv(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_RGBA, swizzle);
+	}
 
 	glGenerateMipmap(GL_TEXTURE_2D);
 

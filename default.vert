@@ -49,12 +49,12 @@ void main()
 		totalNormal = aNormal;
 	}
 
-	crntPos = vec3(model * translation * rotation * scale * totalPosition); 
+	crntPos = vec3(model * totalPosition); 
 	//i dont remember why its -rotation, i think it was a bug with OpenGL !!CORRECTION: IT WAS A BUG!
 	//wait now it changes nothing... or does it?
-	Normal = normalize(totalNormal);
+	Normal = normalize(mat3(transpose(inverse(model))) * totalNormal);
 	color = aColor;
-	texCoord = mat2(1.0, 0.0, 0.0, -1.0) * aTex;
+	texCoord = aTex;
 
 
 	gl_Position = camMatrix * vec4(crntPos, 1.0);

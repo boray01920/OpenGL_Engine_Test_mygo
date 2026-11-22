@@ -34,7 +34,7 @@ int main() {
 
 	glm::vec3 lightPos = glm::vec3(1.0f, 0.5f, 1.0f); 
 	glm::vec4 lightColor = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
-	glm::mat4 lightModel = glm::translate(lightModel, lightPos);
+	glm::mat4 lightModel = glm::translate(glm::mat4(1.0f), lightPos);
 
 	//lightShader.Activate();
 	//glUniform4f(glGetUniformLocation(lightShader.ID, "lightColor"), lightColor.x, lightColor.y, lightColor.z, lightColor.w);
@@ -44,13 +44,18 @@ int main() {
 
 	glEnable(GL_DEPTH_TEST);
 	
+	// default bone matrices = identity (uniform arrays default to 0, which would collapse any skinned vertex)
+	for (int i = 0; i < 100; i++) {
+		glUniformMatrix4fv(glGetUniformLocation(shaderProgram.ID, ("finalBonesMatrices[" + std::to_string(i) + "]").c_str()),
+			1, GL_FALSE, glm::value_ptr(glm::mat4(1.0f)));
+	}
+
 	Camera camera(width, height, glm::vec3(0.0f, 0.0f, 2.0f));
 
 	Model model("models/animdemo/scene.gltf");
 	model.position = glm::vec3(0.0f, 0.5f, -1.0f);
 	Animation animdemo("models/animdemo/scene.gltf", &model);
 	Animator animator(&animdemo);
-	//glm::quat uprightFix = glm::angleAxis(glm::radians(180.0f), glm::vec3(1.0f, 0.0f, 0.0f));
 	
 	float lastFrame = 0.0f;
 	
@@ -68,6 +73,7 @@ int main() {
 		animator.UpdateAnimation(deltaTime);
 
 		shaderProgram.Activate();
+		
 		auto transforms = animator.GetFinalBoneMatrices();
 		for (int i = 0; i < transforms.size(); i++) {
 			glUniformMatrix4fv(
@@ -75,19 +81,11 @@ int main() {
 				1, GL_FALSE, glm::value_ptr(transforms[i])
 			);
 		}
-
-
+		
 		camera.Inputs(window);
 		camera.updateMatrix(45.0f, 0.1f, 100.0f);
-		/*
-		float t = (float)glfwGetTime();
-		glm::quat spin = glm::angleAxis(t, glm::vec3(0.0f, 1.0f, 0.0f));
-		model.rotation = spin;
-		*/
-
 
 		model.Draw(shaderProgram, camera);
-
 		glfwSwapBuffers(window);
 		glfwPollEvents();
 	}
