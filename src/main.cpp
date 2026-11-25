@@ -5,6 +5,7 @@
 #include "Resources/Player.h"
 #include "Resources/Primitives.h"
 #include "Resources/Level.h"
+#include "Resources/WeaponDefs.h"
 
 #define PI 3.1415926535897
 
@@ -78,8 +79,16 @@ int main() {
 	Player player(spawnPoint);
 	camera.Orientation = glm::vec3(0.0f, 0.0f, -1.0f);
 
-	float lastFrame = 0.0f;
+	// ---------------- weapons ---------------- //
+	// 1 = axe, 2 = shotgun. Fire with right mouse or F. Weapons live in Resources/WeaponDefs.h
+	WeaponSystem weapons;
+	RegisterWeapons(weapons);
+	GiveStartingLoadout(weapons);
+	weapons.BindScroll(window);   // mouse wheel
+	ImpactMarkers impacts;
+	weapons.onImpact = [&](const Impact& i) { impacts.Add(i); };   //later
 
+	float lastFrame = 0.0f;
 
 	while (!glfwWindowShouldClose(window)) {
 
@@ -95,32 +104,16 @@ int main() {
 		// ---- input + physics ---- //
 		camera.Inputs(window);   // mouse look only
 		player.Update(window, camera, world, deltaTime);
+		weapons.Update(window, camera, world, deltaTime);   // after the player so the camera is in its final position
+		impacts.Update(deltaTime);
 
-		/*
-		bool rNow = glfwGetKey(window, GLFW_KEY_R) == GLFW_PRESS;
-		if (rNow && !resetHeld) player.Teleport(spawnPoint);
-		resetHeld = rNow;
-
-		bool eNow = glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS;
-		if (eNow && !throwHeld)
-			spawnCrate(camera.Position + camera.Orientation * 0.8f, camera.Orientation * 18.0f + player.body.velocity);
-		throwHeld = eNow;
-
-		for (Body& c : crates) {
-			world.Step(c, deltaTime);
-			if (c.onGround) {                                         // ground friction so crates slide to a stop
-				float damp = std::exp(-5.0f * deltaTime);
-				c.velocity.x *= damp;
-				c.velocity.z *= damp;
-			}
-		}
-		*/
 		shaderProgram.Activate();
 		
 		camera.updateMatrix(60.0f, 0.05f, 100.0f);
 
 		level.Draw(shaderProgram, camera);
-		//for (const Body& c : crates) drawBox(c.position, c.halfExtents * 2.0f, glm::vec4(0.85f, 0.55f, 0.2f, 1.0f));
+		impacts.Draw(shaderProgram, camera);
+		weapons.DrawViewModel(shaderProgram, camera);   // last clears depth so it draws over everything
 
 		glfwSwapBuffers(window);
 		glfwPollEvents();
