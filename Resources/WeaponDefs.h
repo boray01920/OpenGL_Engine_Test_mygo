@@ -73,9 +73,11 @@ inline void RegisterWeapons(WeaponSystem& w) {
 		W_Fire_Nailgun,
 		/*vmOffset*/ { 0.25f, -0.2f, 0.6f }, /*vmSize*/ { 0.09f, 0.09f, 0.7f }, /*vmColor*/ { 0.5f, 0.5f, 0.15f, 1.0f },
 		/*kick*/ 	0.8f,
-		/*vmModel*/ 	"",		//"weapons/nailgun.glb"
+		/*vmModel*/ "weapons/famas/famas.obj",		//"weapons/nailgun.glb"
 		/*vmModelScale*/ 1.0f,
-		/*vmModelRotation*/ { 0.0f, 0.0f, 0.0f }
+		/*vmModelRotation*/ { 0.5f, 0.0f, 0.0f },
+		/*fireSound*/ "s_weapons/famas.mp3",
+		/*fireSoundMax*/ 0.11f		// cut the clip after 0.2 s so rapid fire stays tight, 0 = full file
 	});
 }
 

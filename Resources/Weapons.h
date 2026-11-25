@@ -5,7 +5,6 @@
 //   WeaponDefs.h               the weapons themselves: one fire function + one table row each. Edit THAT to
 //                              tweak damage / refire / spread, or to add a weapon.
 //
-// How it maps to Quake:
 //   attack_finished   -> attackFinished   (can't fire again until time reaches it)
 //   W_Attack()        -> WeaponSystem::Attack()
 //   W_BestWeapon()    -> WeaponSystem::BestWeapon()
@@ -80,6 +79,13 @@ struct WeaponDef {
 	std::string vmModel;
 	float       vmModelScale = 1.0f;
 	glm::vec3   vmModelRotation{ 0.0f };   // extra rotation in degrees (pitch, yaw, roll) applied to the model
+
+							// ---- sound (optional) ---- //
+	// Path relative to assets/sounds/, e.g. "s_weapons/famas.mp3". Empty = silent.
+	// fireSoundMax > 0 cuts the sound off after that many seconds (0 = play the whole file).
+	std::string fireSound;
+	float       fireSoundMax = 0.0f;
+	float       fireSoundVolume = 1.0f;
 };
 
 class WeaponSystem {
@@ -107,6 +113,9 @@ public:
 	// 	called for every successful hit. 
 	//	TODO: Hook up sounds, entity damage here.
 	std::function<void(const Impact&)> onImpact;
+
+	// called once per shot that actually fires (ammo spent), before the fire function runs. Hook sounds here.
+	std::function<void(const WeaponDef&)> onFire;
 
 	// ---- setup ---- //
 	int AddWeapon(const WeaponDef& d) {
@@ -194,6 +203,7 @@ public:
 		if (d.ammoType != AMMO_NONE) ammo[d.ammoType] -= d.ammoPerShot;
 		attackFinished = time + d.refire;
 		kickAmount = d.kick;
+		if (onFire) onFire(d);
 		if (d.fire) d.fire(*this);
 		if (!HasAmmoFor(defs[current])) BestWeapon();
 	}

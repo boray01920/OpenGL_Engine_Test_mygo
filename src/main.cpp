@@ -6,6 +6,7 @@
 #include "Resources/Primitives.h"
 #include "Resources/Level.h"
 #include "Resources/WeaponDefs.h"
+#include "Resources/Audio.h"
 
 #define PI 3.1415926535897
 
@@ -80,13 +81,19 @@ int main() {
 	camera.Orientation = glm::vec3(0.0f, 0.0f, -1.0f);
 
 	// ---------------- weapons ---------------- //
-	// 1 = axe, 2 = shotgun. Fire with right mouse or F. Weapons live in Resources/WeaponDefs.h
+	// 1 = axe, 2 = shotgun. Fire with right mouse or F
 	WeaponSystem weapons;
 	RegisterWeapons(weapons);
 	GiveStartingLoadout(weapons);
 	weapons.BindScroll(window);   // mouse wheel
+
+	// ---------------- audio ---------------- //
+	Audio audio;
+	for (const WeaponDef& d : weapons.defs) audio.Preload(d.fireSound);
+	weapons.onFire = [&](const WeaponDef& d) { audio.Play(d.fireSound, d.fireSoundVolume, d.fireSoundMax); };
+	audio.PlayMusic("music/kessoku.mp3");   // drop a file in assets/sounds/music/ and uncomment
 	ImpactMarkers impacts;
-	weapons.onImpact = [&](const Impact& i) { impacts.Add(i); };   //later
+	weapons.onImpact = [&](const Impact& i) { impacts.Add(i); };   //later impact stuff
 
 	float lastFrame = 0.0f;
 
