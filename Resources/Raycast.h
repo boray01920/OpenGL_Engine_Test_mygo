@@ -6,13 +6,13 @@
 //
 // Tests every AABB in PhysicsWorld::statics and every triangle in PhysicsWorld::tris,
 // so it sees exactly what the player collides with (Solid + Clip level objects).
-// Units are meters, same as the rest of the game.
+// Units are meters same as the rest of the game.
 //
-// To trace against entities later, run RayVsAABB (below) over their boxes and keep the closest hit.
+//TODO: To trace against entities later, run RayVsAABB (below) over their boxes and keep the closest hit.
 
 #include "Physics.h"
 #include <glm/glm.hpp>
-#include <limits>
+//#include <limits>
 
 enum class HitKind { None, Box, Triangle };
 

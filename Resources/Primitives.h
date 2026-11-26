@@ -3,8 +3,6 @@
 
 #include "Mesh.h"
 
-// Builds a unit cube (-0.5..0.5) with per-face normals, flat colored via MaterialInfo.
-// Scale/translate it with the model matrix passed to Mesh::Draw. Needs a live GL context.
 inline Mesh MakeBoxMesh(const glm::vec4& color) {
 	struct Face { glm::vec3 n, u, v; };
 	const Face faces[6] = {
