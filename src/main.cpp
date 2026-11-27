@@ -14,6 +14,12 @@
 const unsigned int width = 1280;
 const unsigned int height = 720;
 
+const float PLAYER_SCALE = 2.0f;
+// Anything farther than FAR_PLANE is not drawn, kinda like render distance
+// it IS render distance dumbass
+const float NEAR_PLANE = 0.05f * PLAYER_SCALE; 
+const float FAR_PLANE  = 5000.0f;
+
 
 int main() {
 
@@ -76,13 +82,14 @@ int main() {
 	// Every level will use this spawnpoint and the maps will be made accordingly to this spawnpoint...
 	// That is until i figure out entities in trenchbroom
 	const glm::vec3 spawnPoint(0.0f, -5.1f, -10.0f); 
-	Player player(spawnPoint);
+	Player player(spawnPoint, PLAYER_SCALE);
 	camera.Orientation = glm::vec3(0.0f, 0.0f, -1.0f);
 
 						// ---------------- weapons ---------------- //
 	WeaponSystem weapons;
 	RegisterWeapons(weapons);
 	GiveStartingLoadout(weapons);
+	weapons.worldScale = PLAYER_SCALE;
 	weapons.BindScroll(window);   // mouse wheel
 
 						// ---------------- audio ---------------- //
@@ -119,7 +126,6 @@ int main() {
 		ui.Begin(window, deltaTime);
 		fps = glm::mix(fps, 1.0f / std::max(deltaTime, 0.0001f), 0.05f);
 
-		// ESC toggles pause while in a level
 		if (ui.KeyPressed(GLFW_KEY_ESCAPE)) {
 			if (state == GameState::Playing)     state = GameState::Paused;
 			else if (state == GameState::Paused) state = GameState::Playing;
@@ -135,7 +141,7 @@ int main() {
 
 		shaderProgram.Activate();
 		
-		camera.updateMatrix(60.0f, 0.05f, 100.0f);
+		camera.updateMatrix(60.0f, NEAR_PLANE, FAR_PLANE);
 
 		level.Draw(shaderProgram, camera);
 		impacts.Draw(shaderProgram, camera);
@@ -144,7 +150,7 @@ int main() {
 		// ---------------- UI draw last---------------- //
 		if (state == GameState::Playing) {
 			// crosshair
-			ui.TextCentered(width / 2, height / 2 - 12, "⋅", 3, UI::White);
+			ui.TextCentered(width / 2, height / 2 - 12, "+", 3, UI::White);
 
 			// ammo / weapon, bottom right
 			const WeaponDef& wd = weapons.Current();

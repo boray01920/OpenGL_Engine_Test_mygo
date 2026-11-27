@@ -82,7 +82,7 @@ public:
 			MoveAxis(b, 2, b.velocity.z * h, wasGrounded);
 			MoveAxis(b, 1, b.velocity.y * h, false);
 			if (m_hitGround) grounded = true;
-			if (!tris.empty()) ResolveTris(b, wasGrounded, grounded);
+			if (!tris.empty()) ResolveTris(b, wasGrounded, grounded, h);
 		}
 		b.onGround = grounded;
 	}
@@ -94,6 +94,7 @@ public:
 
 private:
 	mutable bool m_hitGround = false;
+	static constexpr float kSkin = 0.005f;   // penetration smaller than this is treated as plain contact
 
 	// ---------------- triangle collision ---------------- //
 	static bool AxisSeparates(glm::vec3 axis, const glm::vec3& v0, const glm::vec3& v1, const glm::vec3& v2, const glm::vec3& h) {
@@ -133,17 +134,32 @@ private:
 		return true;
 	}
 
-	void ResolveTris(Body& b, bool wasGrounded, bool& grounded) const {
+	void ResolveTris(Body& b, bool wasGrounded, bool& grounded, float h) const {
 		const float walkY = std::cos(maxSlopeDeg * 3.14159265f / 180.0f);
 
+		// Walls first, THEN the ground snap, then walls again. If the snap ran first, a body pressed into a wall
+		// (or hugging the side of a ramp) would get lifted by the ramp under the part that is inside the wall.
+		PushOutSteep(b, walkY);
+		SnapToWalkable(b, wasGrounded, grounded, h, walkY);
+		PushOutSteep(b, walkY);
+	}
+
+	void SnapToWalkable(Body& b, bool wasGrounded, bool& grounded, float h, float walkY) const {
 		// ---- walkable surfaces: follow the surface height under the feet ---- //
 		const glm::vec3 hx = b.halfExtents;
 		float feetY  = b.position.y - hx.y;
-		float snapUp = b.stepHeight + 0.12f;
+		// Only grounded bodies may climb a step. In the air we still allow what this substep's movement could have
+		// sunk us into a slope (horizontal travel * tan(slope), slope < 45deg) plus the fall distance.
+		float hdist = std::sqrt(b.velocity.x * b.velocity.x + b.velocity.z * b.velocity.z) * h;
+		float snapUp = 0.12f + hdist * 1.2f + (wasGrounded ? b.stepHeight : 0.0f) + std::max(0.0f, -b.velocity.y) * h;
 		float snapDown = (wasGrounded && b.velocity.y <= 0.0f) ? std::max(b.stepHeight, 0.12f) : 0.0f;
 
-		const float sx[5] = { 0.0f,  hx.x, -hx.x,  hx.x, -hx.x };
-		const float sz[5] = { 0.0f,  hx.z,  hx.z, -hx.z, -hx.z };
+		// Sample points sit slightly inside the box. A body that merely touches the edge of a ramp (standing
+		// next to it) must not count as standing on it, or it gets lifted up the ramp's side.
+		const float inset = 0.02f;
+		const float ix = std::max(0.0f, hx.x - inset), iz = std::max(0.0f, hx.z - inset);
+		const float sx[5] = { 0.0f,  ix, -ix,  ix, -ix };
+		const float sz[5] = { 0.0f,  iz,  iz, -iz, -iz };
 		bool  found = false;
 		float best = -1e30f;
 		for (const Tri& t : tris) {
@@ -158,16 +174,31 @@ private:
 			}
 		}
 		if (found) {
-			if (b.velocity.y <= 0.0f) {
-				b.position.y = best + hx.y;
-				b.velocity.y = 0.0f;
-				grounded = true;
-			} else if (feetY < best) {
-				b.position.y = best + hx.y;   // moving up (jumping): just don't sink into the surface
+			// If the snapped position would be inside a box we are standing on (e.g. we just stepped from the top
+			// of a ramp onto the flat floor it leads to), the box is the real ground. The ramp triangles under our
+			// rear foot samples must not pull us back down into it.
+			AABB snapped = AABB::FromCenter(glm::vec3(b.position.x, best + hx.y, b.position.z), hx);
+			const glm::vec3 sk(kSkin);
+			bool blocked = false;
+			for (const AABB& s : statics)
+				if (AABB{ snapped.min + sk, snapped.max - sk }.Overlaps(s)) { blocked = true; break; }
+
+			if (!blocked) {
+				if (b.velocity.y <= 0.0f) {
+					b.position.y = best + hx.y;
+					b.velocity.y = 0.0f;
+					grounded = true;
+				} else if (feetY < best) {
+					b.position.y = best + hx.y;   // moving up (jumping): just don't sink into the surface
+				}
 			}
 		}
 
-		// ---- steep surfaces and ceilings: block ---- // Im fucking done
+	}
+
+	// ---- steep surfaces and ceilings: block ---- //
+	void PushOutSteep(Body& b, float walkY) const {
+		const glm::vec3 hx = b.halfExtents;
 		for (const Tri& t : tris) {
 			if (t.n.y >= walkY) continue;
 			AABB bb = b.Bounds();
@@ -176,7 +207,9 @@ private:
 
 			glm::vec3 c = bb.Center();
 			float r = hx.x * std::fabs(t.n.x) + hx.y * std::fabs(t.n.y) + hx.z * std::fabs(t.n.z);
-			float pen = r - glm::dot(c - t.a, t.n);          	// penetration of the box into the triangle's plane
+			float dist = glm::dot(c - t.a, t.n);
+			if (dist < 0.0f) continue;
+			float pen = r - dist;                            	// penetration of the box into the triangle's plane
 			if (pen <= 0.0f) continue;
 			pen = std::min(pen, 0.25f);
 
@@ -203,8 +236,24 @@ private:
 		bool hit = false;
 		b.position[axis] += delta;
 
+		// Sliding contact on the OTHER axes (resting on a box top while walking sideways, ramp/plateau seams) is
+		// not a hit. The axis we are moving along gets no skin, otherwise a body resting on the floor that falls
+		// a few mm per substep would never register the floor and onGround would flicker (no friction).
+		glm::vec3 skinOther(kSkin); skinOther[axis] = 0.0f;
 		for (const AABB& s : statics) {
-			if (!b.Bounds().Overlaps(s)) continue;
+			AABB now = b.Bounds();
+			if (!AABB{ now.min + skinOther, now.max - skinOther }.Overlaps(s)) continue;
+			// We may only be stopped by the face we are actually approaching: moving +, we must have started on the
+			// box's low side; moving -, on its high side. Otherwise (already inside it, or leaving it) snapping to
+			// that face would throw the body across the whole box. Only block moves that go deeper.
+			const float he = b.halfExtents[axis], side = 0.05f;
+			bool fromFront = delta > 0.0f ? (before[axis] + he <= s.min[axis] + side)
+			                              : (before[axis] - he >= s.max[axis] - side);
+			if (!fromFront) {
+				bool deeper = delta > 0.0f ? s.Center()[axis] > before[axis] : s.Center()[axis] < before[axis];
+				if (deeper) b.position[axis] = before[axis];
+				continue;
+			}
 			hit = true;
 			if (delta > 0.0f) b.position[axis] = s.min[axis] - b.halfExtents[axis];
 			else              b.position[axis] = s.max[axis] + b.halfExtents[axis];

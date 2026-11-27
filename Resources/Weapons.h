@@ -97,6 +97,7 @@ public:
 	int   maxAmmo[AMMO_COUNT] = {};
 	int   current = 0;
 	float time = 0.0f;               // game time, only advances in Update
+	float worldScale = 1.0f;         // match the player's scale: multiplies ranges, view model offset/size
 	float attackFinished = 0.0f;
 
 	// ---- input bindings ---- //
@@ -211,7 +212,7 @@ public:
 						// ---- fire functions ---- //
 
 	// traceline from the eye along direction
-	RayHit TraceLine(const glm::vec3& dir, float range) const { return Raycast(*world, origin, dir, range); }
+	RayHit TraceLine(const glm::vec3& dir, float range) const { return Raycast(*world, origin, dir, range * worldScale); }
 
 	// FireBullets: 'shots' rays
 	// Each randomly spread by up to +-spreadX / +-spreadY (as tangent of the angle).
@@ -240,7 +241,7 @@ public:
 		if (defs.empty()) return;
 		const WeaponDef& d = defs[current];
 		SetupBasis(camera);
-		glm::vec3 pos = camera.Position + right * d.vmOffset.x + up * d.vmOffset.y + forward * (d.vmOffset.z - kickAmount * 0.15f);
+		glm::vec3 pos = camera.Position + (right * d.vmOffset.x + up * d.vmOffset.y + forward * (d.vmOffset.z - kickAmount * 0.15f)) * worldScale;
 		glm::mat4 m(1.0f);
 		m[0] = glm::vec4(right, 0.0f);
 		m[1] = glm::vec4(up, 0.0f);
@@ -255,14 +256,14 @@ public:
 			glm::mat4 full = m * rot;
 			model->position = pos;
 			model->rotation = glm::quat_cast(glm::mat3(full));
-			model->scale    = glm::vec3(d.vmModelScale);
+			model->scale    = glm::vec3(d.vmModelScale * worldScale);
 			model->Draw(shader, camera);
 		}
 		else {
 			if (!viewBox) viewBox = std::make_unique<Mesh>(MakeBoxMesh(glm::vec4(1.0f)));
 			viewBox->material.baseColor = d.vmColor;
 			glFrontFace(GL_CCW);
-			viewBox->Draw(shader, camera, m * glm::scale(glm::mat4(1.0f), d.vmSize));
+			viewBox->Draw(shader, camera, m * glm::scale(glm::mat4(1.0f), d.vmSize * worldScale));
 		}
 	}
 

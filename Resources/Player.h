@@ -35,9 +35,13 @@ public:
 
     Body body;
 
-    explicit Player(glm::vec3 feetPos = glm::vec3(0.0f)) {
-        body.halfExtents = glm::vec3(0.3f, 0.9f, 0.3f);
-        body.stepHeight  = 0.35f;
+    // scale: 1 = original size. Everything length-based (hull, eye, step, speeds, gravity, jump) is multiplied by it
+    // so the movement feels identical, just in a bigger body.
+    explicit Player(glm::vec3 feetPos = glm::vec3(0.0f), float scale = 1.0f) {
+        maxSpeed *= scale; stopSpeed *= scale; gravity *= scale; jumpVelocity *= scale;
+        airStrafeSpeed *= scale; eyeOffset *= scale; bobAmp *= scale;
+        body.halfExtents = glm::vec3(0.3f, 0.9f, 0.3f) * scale;
+        body.stepHeight  = 0.35f * scale;
         body.useGravity  = false;
         Teleport(feetPos);
     }
